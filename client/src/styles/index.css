@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-slate-50 text-slate-800 antialiased;
+}
+
+/* Onboarding / first-load animation */
+@keyframes onboarding-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.02); }
+}
+
+.onboarding-logo {
+  animation: onboarding-pulse 1.5s ease-in-out infinite;
+}
+
+/* Skeleton */
+.skeleton {
+  @apply bg-slate-200 rounded animate-pulse;
+}
+
+/* Route transition */
+.page-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Premium card */
+.card-premium {
+  @apply bg-white rounded-2xl border border-slate-100/80 transition-all duration-300;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 0 0 1px rgb(0 0 0 / 0.02);
+}
+.card-premium:hover {
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.06), 0 4px 6px -4px rgb(0 0 0 / 0.04), 0 0 0 1px rgb(0 0 0 / 0.03);
+  @apply -translate-y-0.5;
+}
+
+.card-hover {
+  @apply transition-all duration-300 hover:-translate-y-0.5;
+}
+.card-hover:hover {
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.06), 0 4px 6px -4px rgb(0 0 0 / 0.04), 0 0 0 1px rgb(0 0 0 / 0.03);
+}
+
+/* Button */
+.btn-primary {
+  @apply bg-primary-600 text-white font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 hover:bg-primary-700 hover:shadow-lg active:scale-[0.98];
+}
+.btn-secondary {
+  @apply bg-white border border-slate-200 text-slate-700 font-medium px-5 py-2.5 rounded-xl transition-all duration-200 hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98];
+}
+.btn-secondary:hover {
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 0 0 1px rgb(0 0 0 / 0.02);
+}
+
+/* Table */
+.table-row-hover {
+  @apply transition-colors duration-150 hover:bg-slate-50/80;
+}
+
+/* Sidebar active pill */
+.nav-active-pill {
+  @apply absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full bg-primary-600;
+}

@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# Uploads and generated files
+server/uploads/
+server/uploads/offers/
+server/uploads/voice/
+server/uploads/resumes/
+server/uploads/imports/
+
+# Build output
+client/dist/
+build/
+
+# Logs and OS
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

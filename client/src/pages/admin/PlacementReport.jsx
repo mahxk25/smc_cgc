@@ -42,6 +42,7 @@ export default function AdminPlacementReport() {
   const totals = data.totals || {};
   const byDept = data.byDepartment || [];
   const byCompany = data.byCompany || [];
+  const placedStudents = data.placedStudents || [];
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -142,6 +143,59 @@ export default function AdminPlacementReport() {
                     <td className="py-3 px-4 font-medium">{row.companyName}</td>
                     <td className="py-3 px-4">{row.role}</td>
                     <td className="py-3 px-4">{row.selectedCount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Placed students (detailed) */}
+      <div className="rounded-xl border border-slate-100 bg-white overflow-hidden shadow-sm">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <h2 className="font-semibold text-slate-800">Placed students</h2>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Full details (also included in Excel export)
+          </p>
+        </div>
+        {placedStudents.length === 0 ? (
+          <div className="p-8 text-center text-slate-500">No placed students yet.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Student</th>
+                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Department</th>
+                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Company</th>
+                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Role</th>
+                  <th className="text-left py-3 px-4 font-semibold text-slate-700">CTC</th>
+                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Salary package</th>
+                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Rounds</th>
+                  <th className="text-left py-3 px-4 font-semibold text-slate-700">Offer</th>
+                </tr>
+              </thead>
+              <tbody>
+                {placedStudents.map((r) => (
+                  <tr key={r.applicationId} className="border-b border-slate-100 last:border-0">
+                    <td className="py-3 px-4">
+                      <div className="font-medium text-slate-800">{r.studentName} ({r.deptNo})</div>
+                      <div className="text-xs text-slate-500">{r.email}</div>
+                    </td>
+                    <td className="py-3 px-4">{r.department}</td>
+                    <td className="py-3 px-4 font-medium">{r.companyName}</td>
+                    <td className="py-3 px-4">{r.driveRole}</td>
+                    <td className="py-3 px-4">{r.driveCtc ?? '-'}</td>
+                    <td className="py-3 px-4">{r.companySalaryPackage ?? '-'}</td>
+                    <td className="py-3 px-4">
+                      <div>{r.roundsConducted ?? 0}</div>
+                      {r.roundNames && <div className="text-xs text-slate-500 mt-1">{r.roundNames}</div>}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="text-sm">{r.offerDecision ?? '-'}</div>
+                      {r.offerDeadline && <div className="text-xs text-slate-500 mt-1">{new Date(r.offerDeadline).toLocaleString()}</div>}
+                    </td>
                   </tr>
                 ))}
               </tbody>

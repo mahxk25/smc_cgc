@@ -2,29 +2,80 @@ import pool from '../db/pool.js';
 import * as notificationService from '../utils/notifications.js';
 
 export async function getDashboard() {
+  const hasSoftDelete = async () => {
+    try {
+      await pool.query('SELECT deletedAt FROM students LIMIT 1');
+      return true;
+    } catch (err) {
+      if (err?.code === 'ER_BAD_FIELD_ERROR') return false;
+      throw err;
+    }
+  };
+
+  const softDelete = await hasSoftDelete();
+
+  const studentsWhere = softDelete ? 'WHERE deletedAt IS NULL' : '';
+  const companiesWhere = softDelete ? 'WHERE deletedAt IS NULL' : '';
+  const drivesWhere = softDelete ? 'WHERE deletedAt IS NULL' : '';
+  const eventsWhere = softDelete ? 'WHERE deletedAt IS NULL' : '';
+
   const [
-    [{ totalStudents }],
-    [{ placed }],
-    [{ pendingApps }],
-    [{ upcomingDrives }],
+    [[{ totalStudents }]],
+    [[{ placed }]],
+    [[{ pendingApps }]],
+    [[{ totalApplications }]],
+    [[{ selectedApplications }]],
+    [[{ totalCompanies }]],
+    [[{ totalDrives }]],
+    [[{ upcomingDrives }]],
+    [[{ totalEvents }]],
+    [[{ upcomingEvents }]],
     topCompanies,
-    [{ expiringOffersCount }],
-    [{ firstDriveIdWithPending }],
-    [{ drivesClosingSoonCount }],
+    [[{ offersPending }]],
+    [[{ offersAccepted }]],
+    [[{ offersRejected }]],
+    [[{ expiringOffersCount }]],
+    [[{ firstDriveIdWithPending }]],
+    [[{ drivesClosingSoonCount }]],
   ] = await Promise.all([
-    pool.query('SELECT COUNT(*) AS totalStudents FROM students WHERE deletedAt IS NULL'),
+    pool.query(`SELECT COUNT(*) AS totalStudents FROM students ${studentsWhere}`),
     pool.query(
-      `SELECT COUNT(DISTINCT a.studentId) AS placed FROM applications a WHERE a.status = 'SELECTED'`
+      // placed = application status SELECTED (students excluded if soft-deleted).
+      `SELECT COUNT(DISTINCT CASE WHEN a.status = 'SELECTED' THEN a.studentId END) AS placed
+       FROM students s
+       LEFT JOIN applications a ON a.studentId = s.id
+       ${studentsWhere ? `WHERE s.deletedAt IS NULL` : ''}`
     ),
     pool.query('SELECT COUNT(*) AS pendingApps FROM applications WHERE status IN (\'APPLIED\', \'SHORTLISTED\')'),
-    pool.query('SELECT COUNT(*) AS upcomingDrives FROM drives WHERE deletedAt IS NULL AND status IN (\'UPCOMING\', \'ONGOING\') AND deadline >= NOW()'),
+    pool.query('SELECT COUNT(*) AS totalApplications FROM applications'),
+    pool.query('SELECT COUNT(*) AS selectedApplications FROM applications WHERE status = \'SELECTED\''),
+    pool.query(`SELECT COUNT(*) AS totalCompanies FROM companies ${companiesWhere}`),
+    pool.query(`SELECT COUNT(*) AS totalDrives FROM drives ${drivesWhere}`),
     pool.query(
-      `SELECT c.name, COUNT(a.id) AS count FROM companies c
-       LEFT JOIN drives d ON d.companyId = c.id AND d.deletedAt IS NULL
-       LEFT JOIN applications a ON a.driveId = d.id AND a.status = 'SELECTED'
-       WHERE c.deletedAt IS NULL
-       GROUP BY c.id ORDER BY count DESC LIMIT 5`
+      `SELECT COUNT(*) AS upcomingDrives FROM drives
+       ${drivesWhere ? 'WHERE deletedAt IS NULL' : 'WHERE 1=1'}
+       AND status IN ('UPCOMING', 'ONGOING') AND deadline >= NOW()`
     ),
+    pool.query(`SELECT COUNT(*) AS totalEvents FROM events ${eventsWhere}`),
+    pool.query(
+      `SELECT COUNT(*) AS upcomingEvents FROM events
+       ${eventsWhere ? 'WHERE deletedAt IS NULL' : 'WHERE 1=1'}
+       AND startTime >= NOW()`
+    ),
+    pool.query(
+      `SELECT c.name,
+              COUNT(CASE WHEN a.status = 'SELECTED' THEN 1 END) AS count
+       FROM companies c
+       LEFT JOIN drives d ON d.companyId = c.id ${softDelete ? 'AND d.deletedAt IS NULL' : ''}
+       LEFT JOIN applications a ON a.driveId = d.id
+       ${softDelete ? 'WHERE c.deletedAt IS NULL' : ''}
+       GROUP BY c.id
+       ORDER BY count DESC
+       LIMIT 5`
+    ),
+    pool.query('SELECT COUNT(*) AS offersPending FROM offers WHERE decision = \'PENDING\''),
+    pool.query('SELECT COUNT(*) AS offersAccepted FROM offers WHERE decision = \'ACCEPTED\''),
+    pool.query('SELECT COUNT(*) AS offersRejected FROM offers WHERE decision = \'REJECTED\''),
     pool.query(
       `SELECT COUNT(*) AS expiringOffersCount FROM offers o
        WHERE o.decision = 'PENDING' AND o.offerDeadline BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 48 HOUR)`
@@ -35,16 +86,26 @@ export async function getDashboard() {
     ),
     pool.query(
       `SELECT COUNT(*) AS drivesClosingSoonCount FROM drives
-       WHERE deletedAt IS NULL AND status IN ('UPCOMING', 'ONGOING') AND deadline >= NOW() AND deadline <= DATE_ADD(NOW(), INTERVAL 7 DAY)`
+       ${drivesWhere ? 'WHERE deletedAt IS NULL' : 'WHERE 1=1'}
+       AND status IN ('UPCOMING', 'ONGOING') AND deadline >= NOW() AND deadline <= DATE_ADD(NOW(), INTERVAL 7 DAY)`
     ),
   ]);
-  const topCompaniesList = Array.isArray(topCompanies[0]) ? topCompanies[0] : (topCompanies[0] ? [topCompanies[0]] : []);
+  const topCompaniesList = Array.isArray(topCompanies?.[0]) ? topCompanies[0] : (topCompanies?.[0] ? [topCompanies[0]] : []);
   return {
     totalStudents: totalStudents || 0,
     placed: placed || 0,
     pendingApplications: pendingApps || 0,
+    totalApplications: totalApplications || 0,
+    selectedApplications: selectedApplications || 0,
+    totalCompanies: totalCompanies || 0,
+    totalDrives: totalDrives || 0,
     upcomingDrives: upcomingDrives || 0,
+    totalEvents: totalEvents || 0,
+    upcomingEvents: upcomingEvents || 0,
     topCompanies: topCompaniesList,
+    offersPending: offersPending || 0,
+    offersAccepted: offersAccepted || 0,
+    offersRejected: offersRejected || 0,
     expiringOffersCount: expiringOffersCount || 0,
     firstDriveIdWithPending: firstDriveIdWithPending?.firstDriveIdWithPending ?? null,
     drivesClosingSoonCount: drivesClosingSoonCount || 0,
@@ -559,7 +620,7 @@ export async function getEventRegistrations(eventId) {
   return rows;
 }
 
-// ——— Training attendance (TRAINING events with a drive) ———
+// ——— Training attendance (TRAINING events) ———
 
 export async function listTrainingEventsForAttendance(days = 30) {
   const [rows] = await pool.query(
@@ -573,7 +634,6 @@ export async function listTrainingEventsForAttendance(days = 30) {
      LEFT JOIN event_registrations er ON er.eventId = e.id
      WHERE e.deletedAt IS NULL
        AND e.type = 'TRAINING'
-       AND e.driveId IS NOT NULL
        AND e.startTime >= DATE_SUB(NOW(), INTERVAL ? DAY)
      GROUP BY e.id
      ORDER BY e.startTime DESC`,
@@ -584,7 +644,7 @@ export async function listTrainingEventsForAttendance(days = 30) {
 
 export async function getTrainingAttendance(eventId) {
   const event = await getEventById(eventId);
-  if (!event || event.type !== 'TRAINING' || !event.driveId) return null;
+  if (!event || event.type !== 'TRAINING') return null;
   const [rows] = await pool.query(
     `SELECT er.id AS registrationId, er.registeredAt,
             s.id AS studentId, s.deptNo, s.name, s.department, s.email,
@@ -798,11 +858,103 @@ export async function getPlacementReport() {
      WHERE d.deletedAt IS NULL
      GROUP BY d.id ORDER BY selectedCount DESC`
   );
+  const [placedStudents] = await pool.query(
+    `SELECT
+        s.id AS studentId,
+        s.deptNo,
+        s.name AS studentName,
+        s.department,
+        s.cgpa,
+        s.email,
+        s.phone,
+        a.id AS applicationId,
+        a.driveId,
+        a.status AS applicationStatus,
+        a.currentRoundNumber,
+        a.appliedAt,
+        a.updatedAt AS statusUpdatedAt,
+        d.role AS driveRole,
+        d.ctc AS driveCtc,
+        d.status AS driveStatus,
+        d.deadline AS driveDeadline,
+        c.id AS companyId,
+        c.name AS companyName,
+        c.industry AS companyIndustry,
+        c.salaryPackage AS companySalaryPackage,
+        o.decision AS offerDecision,
+        o.offerDeadline,
+        o.offerPdfPath,
+        COALESCE(dr.roundCount, 0) AS roundsConducted,
+        dr.roundNames
+     FROM applications a
+     JOIN students s ON s.id = a.studentId AND s.deletedAt IS NULL
+     JOIN drives d ON d.id = a.driveId AND d.deletedAt IS NULL
+     JOIN companies c ON c.id = d.companyId AND c.deletedAt IS NULL
+     LEFT JOIN offers o ON o.applicationId = a.id
+     LEFT JOIN (
+       SELECT
+         driveId,
+         COUNT(*) AS roundCount,
+         GROUP_CONCAT(CONCAT(roundNumber, ':', name, CASE WHEN isFinal = 1 THEN ' (Final)' ELSE '' END) ORDER BY roundNumber SEPARATOR ' | ') AS roundNames
+       FROM drive_rounds
+       GROUP BY driveId
+     ) dr ON dr.driveId = d.id
+     WHERE a.status = 'SELECTED'
+     ORDER BY s.department, s.deptNo`
+  );
   const [[totals]] = await pool.query(
     `SELECT COUNT(DISTINCT s.id) AS totalStudents, COUNT(DISTINCT CASE WHEN a.status = 'SELECTED' THEN a.studentId END) AS placed
      FROM students s LEFT JOIN applications a ON a.studentId = s.id WHERE s.deletedAt IS NULL`
   );
-  return { byDepartment: byDept, byCompany: byCompany, totals: totals || {} };
+  return { byDepartment: byDept, byCompany: byCompany, totals: totals || {}, placedStudents };
+}
+
+export async function sendStudentOnboardingNotifications(studentId) {
+  // New students won't have received older broadcasts; send a quick "catch-up" bundle.
+  const [drives] = await pool.query(
+    `SELECT d.id, d.role, c.name AS companyName
+     FROM drives d
+     JOIN companies c ON c.id = d.companyId
+     WHERE d.deletedAt IS NULL
+       AND c.deletedAt IS NULL
+       AND d.status IN ('UPCOMING', 'ONGOING')
+     ORDER BY d.deadline ASC
+     LIMIT 3`
+  );
+  const [events] = await pool.query(
+    `SELECT id, title, startTime
+     FROM events
+     WHERE deletedAt IS NULL
+       AND startTime >= NOW()
+     ORDER BY startTime ASC
+     LIMIT 3`
+  );
+
+  const driveLine = drives.length
+    ? drives.map((d) => `${d.companyName} – ${d.role}`).join(', ')
+    : 'Open the Drives page to view current opportunities.';
+  const eventLine = events.length
+    ? events.map((e) => `${e.title}`).join(', ')
+    : 'Open the Events page to view upcoming sessions.';
+
+  await notificationService.notifyStudent(
+    studentId,
+    'Welcome to SMC Career Connect',
+    'Your account is ready. Explore drives, events, and notifications.',
+    '/student/dashboard'
+  );
+  await notificationService.notifyStudent(
+    studentId,
+    'Placement drives available',
+    driveLine,
+    '/student/drives'
+  );
+  await notificationService.notifyStudent(
+    studentId,
+    'Upcoming events',
+    eventLine,
+    '/student/events'
+  );
 }
 
 // ——— Expiring offers (deadline in next N hours) ———

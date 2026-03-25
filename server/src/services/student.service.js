@@ -157,9 +157,9 @@ export async function updateOfferDecision(offerId, decision) {
 }
 
 export async function registerEvent(eventId, studentId) {
-  // Only training events linked to a drive participate in attendance.
+  // TRAINING events participate in attendance (attendanceStatus defaults to ABSENT).
   const [events] = await pool.query(
-    'SELECT id, type, driveId FROM events WHERE id = ? AND type = ? AND driveId IS NOT NULL',
+    'SELECT id, type FROM events WHERE id = ? AND type = ?',
     [eventId, 'TRAINING']
   );
   if (events.length) {

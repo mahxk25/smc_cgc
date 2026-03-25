@@ -113,7 +113,7 @@ export default function AdminAttendance() {
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Training attendance</h1>
         <p className="text-slate-500 mt-1 text-sm">
-          Mark attendance for training sessions that are linked to placement drives.
+          Mark attendance for training sessions.
         </p>
       </div>
 
@@ -123,7 +123,7 @@ export default function AdminAttendance() {
           <div className="px-5 py-4 border-b border-slate-100">
             <h2 className="font-semibold text-slate-800 text-sm">Training sessions</h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Only TRAINING events that are linked to drives are shown here.
+              All TRAINING events are shown here.
             </p>
           </div>
           <div className="p-4 max-h-[480px] overflow-y-auto">

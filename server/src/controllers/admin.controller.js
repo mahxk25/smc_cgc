@@ -68,6 +68,9 @@ export async function createStudent(req, res) {
   const dob_hash = await bcrypt.hash(password, 10);
   const id = await adminService.createStudent({ deptNo, name, dob_hash, department, cgpa: cgpa ? parseFloat(cgpa) : null, email, phone });
   await adminService.createAuditLog('ADMIN', req.adminId, 'STUDENT_CREATE', { studentId: id, deptNo });
+  try {
+    await adminService.sendStudentOnboardingNotifications(id);
+  } catch (_) {}
   res.status(201).json({ id, message: 'Student created' });
 }
 
@@ -762,6 +765,20 @@ export async function bulkImportStudents(req, res) {
   if (rows.length === 0) return res.status(400).json({ error: 'No rows to import' });
   const result = await adminService.bulkImportStudents(rows);
   await adminService.createAuditLog('ADMIN', req.adminId, 'STUDENTS_BULK_IMPORT', { created: result.created, errors: result.errors.length });
+  try {
+    // Attempt onboarding notifications for newly-created students (best-effort).
+    // We don't have created IDs here, so send only if we can infer by deptNo.
+    const deptNos = rows.map((r) => (r.deptNo || '').toString().trim()).filter(Boolean);
+    if (deptNos.length) {
+      const [createdRows] = await pool.query(
+        'SELECT id FROM students WHERE deptNo IN (?) AND deletedAt IS NULL ORDER BY id DESC LIMIT 50',
+        [deptNos]
+      );
+      for (const s of createdRows) {
+        await adminService.sendStudentOnboardingNotifications(s.id);
+      }
+    }
+  } catch (_) {}
   if (req.file.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
   res.json(result);
 }

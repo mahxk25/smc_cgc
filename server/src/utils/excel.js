@@ -84,6 +84,7 @@ export async function buildPlacementReportWorkbook(data) {
   const totals = data.totals || {};
   const byDept = data.byDepartment || [];
   const byCompany = data.byCompany || [];
+  const placedStudents = data.placedStudents || [];
 
   // Sheet 1: Summary
   const summaryRows = [
@@ -118,6 +119,54 @@ export async function buildPlacementReportWorkbook(data) {
     { header: 'Role', key: 'role', width: 24 },
     { header: 'Selected', key: 'selectedCount', width: 12 },
   ], companyRows);
+
+  // Sheet 4: Placed Students (detailed)
+  const placedRows = placedStudents.map((r) => ({
+    deptNo: r.deptNo ?? '',
+    studentName: r.studentName ?? '',
+    department: r.department ?? '',
+    cgpa: clean(r.cgpa),
+    email: r.email ?? '',
+    phone: r.phone ?? '',
+    companyName: r.companyName ?? '',
+    companyIndustry: r.companyIndustry ?? '',
+    companySalaryPackage: r.companySalaryPackage ?? '',
+    driveRole: r.driveRole ?? '',
+    driveCtc: r.driveCtc ?? '',
+    driveStatus: r.driveStatus ?? '',
+    roundsConducted: clean(r.roundsConducted),
+    roundNames: r.roundNames ?? '',
+    applicationStatus: r.applicationStatus ?? '',
+    currentRoundNumber: clean(r.currentRoundNumber),
+    appliedAt: clean(r.appliedAt),
+    statusUpdatedAt: clean(r.statusUpdatedAt),
+    offerDecision: r.offerDecision ?? '',
+    offerDeadline: clean(r.offerDeadline),
+    offerPdfPath: r.offerPdfPath ?? '',
+  }));
+  addSheet(wb, 'Placed Students', [
+    { header: 'Dept No', key: 'deptNo', width: 16 },
+    { header: 'Student Name', key: 'studentName', width: 22 },
+    { header: 'Department', key: 'department', width: 14 },
+    { header: 'CGPA', key: 'cgpa', width: 8 },
+    { header: 'Email', key: 'email', width: 26 },
+    { header: 'Phone', key: 'phone', width: 14 },
+    { header: 'Company', key: 'companyName', width: 24 },
+    { header: 'Industry', key: 'companyIndustry', width: 16 },
+    { header: 'Salary Package (Company)', key: 'companySalaryPackage', width: 18 },
+    { header: 'Role', key: 'driveRole', width: 20 },
+    { header: 'CTC (Drive)', key: 'driveCtc', width: 12 },
+    { header: 'Drive Status', key: 'driveStatus', width: 12 },
+    { header: 'Rounds Conducted', key: 'roundsConducted', width: 16 },
+    { header: 'Round Names', key: 'roundNames', width: 40 },
+    { header: 'Application Status', key: 'applicationStatus', width: 16 },
+    { header: 'Current Round #', key: 'currentRoundNumber', width: 14 },
+    { header: 'Applied At', key: 'appliedAt', width: 20 },
+    { header: 'Status Updated At', key: 'statusUpdatedAt', width: 20 },
+    { header: 'Offer Decision', key: 'offerDecision', width: 14 },
+    { header: 'Offer Deadline', key: 'offerDeadline', width: 20 },
+    { header: 'Offer PDF', key: 'offerPdfPath', width: 22 },
+  ], placedRows);
 
   return wb;
 }
